@@ -131,7 +131,7 @@ limid-main.o: main.cpp /usr/include/stdc-predef.h ../include/be.h \
  /usr/include/c++/4.8/iomanip /usr/include/c++/4.8/numeric \
  /usr/include/c++/4.8/bits/stl_numeric.h ../include/index.h \
  ../include/graph.h ../include/set.h ../include/vector.h \
- ../include/algorithm.h ../include/mbe.h
+ ../include/algorithm.h ../include/mbe.h ../include/spu.h
 
 /usr/include/stdc-predef.h:
 
@@ -514,3 +514,5 @@ limid-main.o: main.cpp /usr/include/stdc-predef.h ../include/be.h \
 ../include/algorithm.h:
 
 ../include/mbe.h:
+
+../include/spu.h:

@@ -184,6 +184,14 @@ public:
 
 				tables.push_back(f);
 				temp.push_back(ftypes[i]);
+			} else {
+				// initialize with a uniform random policy
+				vindex d = cliques[i].back();
+				double v = 1.0/(double)dims[d];
+				f.fill(v);
+				f.set_type(factor::FactorType::Decision);
+				tables.push_back(f);
+				temp.push_back(ftypes[i]);
 			}
 		}
 
@@ -192,10 +200,11 @@ public:
 		fixup();
 
 		// Log statistics
-		size_t num_prob = 0, num_util = 0;
+		size_t num_prob = 0, num_util = 0, num_dec = 0;
 		for (size_t i = 0; i < m_ftypes.size(); ++i) {
 			if (m_ftypes[i] == 'p') num_prob++;
 			else if (m_ftypes[i] == 'u') num_util++;
+			else if (m_ftypes[i] == 'd') num_dec++;
 		}
 
 		std::cout << " + model type          : " << (m_forgetful ? "LIMID" : "ID") << std::endl;
@@ -207,6 +216,7 @@ public:
 		std::cout << " + number of factors   : " << m_factors.size() << std::endl;
 		std::cout << " + probability factors : " << num_prob << std::endl;
 		std::cout << " + utility factors     : " << num_util << std::endl;
+		std::cout << " + policy factors (dec): " << num_dec << std::endl;
 	}
 
 	///
@@ -425,12 +435,26 @@ public:
 		std::cout << std::endl;
 	}
 
+	///
+	/// \brief Return the variable types.
+	///
+	const vector<char>& get_vtypes() const {
+		return m_vtypes;
+	}
+
+	///
+	/// \brief Return the factor types.
+	///
+	const vector<char>& get_ftypes() const {
+		return m_ftypes;
+	}
+
 protected:
 
 	// Members:
 
 	vector<char> m_vtypes;				///< Variable types ('c' = chance, 'd' = decision)
-	vector<char> m_ftypes;				///< Factor types ('p' = probability, 'u' = utility, decision)
+	vector<char> m_ftypes;				///< Factor types ('p' = probability, 'u' = utility, 'd' = decision)
 	bool m_forgetful;					///< LIMID flag (ie, forgetful)
 	vector<vindex> m_porder;			///< Partial order induced by the temporal order of decisions (ID only)
 

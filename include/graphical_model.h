@@ -410,6 +410,15 @@ public:
 	};
 
 	///
+	/// \brief Replace a factor with a new one over the same scope.
+	/// \param idx 	The index of the factor to be replaced
+	/// \paral f 	The new factor that replaces the old one
+	///
+	void set_factor(findex idx, const factor& f) {
+		m_factors[idx] = f;
+	};
+
+	///
 	/// \brief Accessor for the factor container.
 	/// \return the list of factors of the model.
 	///
