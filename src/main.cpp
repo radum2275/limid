@@ -26,9 +26,10 @@ int main(void) {
 //	m.run2();
 
 	merlin::limid gm;
-	gm.read("/home/radu/git/limid/examples/pigs.uai");
+	gm.read("/home/radu/git/limid/examples/chain.uai");
 	merlin::spu s(gm);
-	s.run();
+//	s.run();
+	s.brute_force();
 
 	return 0;
 }

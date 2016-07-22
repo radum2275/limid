@@ -74,7 +74,7 @@ public:
 	///
 	/// \brief Properties of the algorithm
 	///
-	MER_ENUM( Property , Order,Iter,Debug,PureStrategy,InitPureStrategy );
+	MER_ENUM( Property , Order,Iter,Verbose,PureStrategy,InitPureStrategy );
 
 public:
 
@@ -143,7 +143,7 @@ public:
 	///
 	virtual void set_properties(std::string opt = std::string()) {
 		if (opt.length() == 0) {
-			set_properties("Order=MinFill,Iter=5,Debug=0,PureStrategy=1,InitPureStrategy=0");
+			set_properties("Order=MinFill,Iter=5,Verbose=0,PureStrategy=1,InitPureStrategy=0");
 			return;
 		}
 		std::vector<std::string> strs = merlin::split(opt, ',');
@@ -157,8 +157,8 @@ public:
 			case Property::Iter:
 				m_iterations = atol(asgn[1].c_str());
 				break;
-			case Property::Debug:
-				m_debug = (atol(asgn[1].c_str()) == 0) ? false : true;
+			case Property::Verbose:
+				m_verbosity = atol(asgn[1].c_str());
 				break;
 			case Property::PureStrategy:
 				m_pure_strategy = (atol(asgn[1].c_str()) == 0) ? false : true;
@@ -212,6 +212,7 @@ public:
 		std::cout << "Initialize solver ..." << std::endl;
 		std::cout << " + models supported : LIMID" << std::endl;
 		std::cout << " + algorithm        : SPU" << std::endl;
+		std::cout << " + verbosity        : " << m_verbosity << std::endl;
 
 		// Construct the elimination ordering
 		m_order = m_gmo.order(m_order_method);
@@ -262,14 +263,15 @@ public:
 		vector<flist> New(m_gmo.num_factors()); // created clusters feed into this cluster
 
 		// First downward pass to initialize the bucket tree and backward messages
-		std::cout << "Initializing bucket-tree ... " << std::endl;
-		std::cout << "  - initial number of clique factors is: " << m_factors.size() << std::endl;
+		if (m_verbosity > 0) std::cout << "Initializing bucket-tree ... " << std::endl;
 		m_clusters.resize(m_order.size()); // init clusters
 		m_ctypes.resize(m_order.size(), false); // init cluster types
 		for (variable_order_t::const_iterator x = m_order.begin(); x != m_order.end(); ++x) {
 
-			std::cout << "  - create cluster for var "
-				<< *x << " (" << m_vtypes[*x] << ")\n" ;
+			if (m_verbosity >= 1) {
+				std::cout << "  - create cluster for var "
+					<< *x << " (" << m_vtypes[*x] << ")\n" ;
+			}
 
 			// Get the current variable to process
 			variable VX = var(*x);
@@ -278,7 +280,7 @@ public:
 
 			flist ids = vin[*x];  // list of factor IDs contained in this bucket
 
-			if (m_debug) {
+			if (m_verbosity >= 2) {
 				std::cout << "  - factors in this bucket: " << ids.size() << std::endl;
 				for (flist::const_iterator i = ids.begin(); i != ids.end(); ++i) {
 					std::cout << "   factor id " << *i << " : " << fin[*i] << std::endl;
@@ -311,7 +313,7 @@ public:
 
 			// Sanity checks
 			assert(ids.size() == 1);
-			if (m_debug) {
+			if (m_verbosity >= 2) {
 				std::cout << "  After merging: " << ids.size() << std::endl;
 				for (flist::const_iterator i = ids.begin(); i != ids.end(); ++i) {
 					std::cout << "  Factor id " << *i << std::endl;
@@ -350,8 +352,7 @@ public:
 			}
 		}
 		// end for: variable elim order
-		std::cout << "  - final number of clique factors is: " << m_factors.size() << std::endl;
-		std::cout << "Done initializing the bucket-tree." << std::endl;
+		if (m_verbosity > 0) std::cout << "Done initializing the bucket-tree." << std::endl;
 
 		// Set the separators and cluster scopes
 		size_t max_sep_size = 0, max_clique_size = 0;
@@ -429,14 +430,13 @@ public:
 		std::cout << " - number of edges:    " << elist.size() << std::endl;
 		std::cout << " - max clique size:    " << max_clique_size << std::endl;
 		std::cout << " - max separator size: " << max_sep_size << std::endl;
-		std::cout << std::endl;
 
 		// Select the first decision (ordered) as the new root of the join tree
 		size_t d = m_decisions[0]; 	// first decision variable
 		m_root = m_policy[d].first;	// and its corresp. cluster
 		std::cout << "First decision in order is " << d << std::endl;
 		std::cout << "Selected cluster " << m_root << " as root" << std::endl;
-		std::cout << "Redirecting join tree edges to new root" << std::endl;
+		std::cout << "Redirected join tree edges to new root" << std::endl;
 
 		// Redirect edges to the new root, and update the message schedule
 		redirect(m_root);
@@ -453,9 +453,8 @@ public:
 		}
 
 		// Debug information
-		if (m_debug) {
-			std::cout << "[MERLIN DEBUG]\n";
-			std::cout << "[DBG] Bucket-tree with " << m_factors.size() << " clusters and "
+		if (m_verbosity >= 2) {
+			std::cout << "Bucket-tree with " << m_factors.size() << " clusters and "
 					<< elist.size() << " edges" << std::endl;
 			for (size_t ei = 0; ei < elist.size(); ++ei) {
 				findex a,b;
@@ -469,13 +468,13 @@ public:
 						<< std::endl;
 			}
 
-			std::cout << "[DBG] Forward propagation schedule:" << std::endl;
+			std::cout << "Forward propagation schedule:" << std::endl;
 			for (size_t i = 0; i < m_schedule.size(); ++i) {
 				std::cout << " msg " << m_schedule[i].first << " --> "
 						<< m_schedule[i].second << std::endl;
 			}
 
-			std::cout << "[DBG] Original factors per cluster:" << std::endl;
+			std::cout << "Original factors per cluster:" << std::endl;
 			for (size_t i = 0; i < m_originals.size(); ++i) {
 				if (m_ctypes[i]) std::cout << "*cl " << i << " : ";
 				else std::cout << " cl " << i << " : ";
@@ -484,18 +483,18 @@ public:
 				std::cout << std::endl;
 			}
 
-			std::cout << "[DBG] Original factors:" << std::endl;
+			std::cout << "Original factors:" << std::endl;
 			for (size_t i = 0; i < m_gmo.num_factors(); ++i) {
 				std::cout << " " << i << " (" << m_ftypes[i] << ") : "
 					<< m_gmo.get_factor(i) << std::endl;
 			}
 
 			// Display the *parents* and *children* lists
-			std::cout << "[DBG] PARENTS:" << std::endl;
+			std::cout << "Join tree PARENTS:" << std::endl;
 			for (size_t i = 0; i < m_parents.size(); ++i) {
 				std::cout << "  parents[" << i << "] = " << m_parents[i] << std::endl;
 			}
-			std::cout << "[DBG] CHILDREN:" << std::endl;
+			std::cout << "Join tree CHILDREN:" << std::endl;
 			for (size_t i = 0; i < m_children.size(); ++i) {
 				std::cout << "  children[" << i << "] = ";
 				std::copy(m_children[i].begin(), m_children[i].end(),
@@ -503,9 +502,7 @@ public:
 				std::cout << std::endl;
 			}
 
-			std::cout << "[DBG] ROOT: " << m_root << " (assume connected graph)" << std::endl;
-
-			std::cout << "[MERLIN DEBUG]\n";
+			std::cout << "Join tree ROOT: " << m_root << " (assume connected graph)" << std::endl;
 		} // end if debug
 	}
 
@@ -553,11 +550,20 @@ public:
 
 		std::cout << "Begin SPU updates along the join tree ..." << std::endl;
 
+		// Evaluate initial policy
 		m_meu = collect();
+		double prev_eu = -infty();
+
+		if (m_verbosity == 0) {
+			std::cout << "  [SPU] init " << m_meu << std::endl;
+		}
 
 		for (size_t iter = 1; iter <= m_iterations; ++iter) {
 
-			std::cout << "  Begin SPU iteration " << iter << " ..." << std::endl;
+			if (m_verbosity >= 1) {
+				std::cout << "  Begin SPU iteration " << iter << " ..." << std::endl;
+			}
+
 			size_t n = m_decisions.size();
 			for (size_t i = 0; i < n; ++i) {
 				size_t di = m_decisions[i];
@@ -565,14 +571,31 @@ public:
 				size_t dj = m_decisions[j];
 
 				update_policy(di); // update the policy of decision 'di', and report EU
+
+				if (m_verbosity == 0) {
+					std::cout << "  [SPU] " << iter << " D" << di << " : " << m_meu << std::endl;
+				}
+
+
 				propagate(di, dj); // update the messages between cliques di and dj
 			}
 
-			std::cout << "  Finished SPU iteration in " << (timeSystem() - m_start_time) << " seconds" << std::endl;
+			if (m_verbosity >= 1) {
+				std::cout << "  Finished SPU iteration in "
+					<< (timeSystem() - m_start_time) << " seconds" << std::endl;
+			}
+
+			// Check if converged
+			if (m_meu <= prev_eu) {
+				std::cout << "Converged after " << iter << " iterations" << std::endl;
+				break; // converged
+			}
+
+			prev_eu = m_meu;
 		}
 
 		// Output solution (UAI output format)
-		std::cout << "Finished in " << (timeSystem() - m_start_time)
+		std::cout << "Finished SPU updates in " << (timeSystem() - m_start_time)
 				<< " seconds" << std::endl;
 	}
 
@@ -645,14 +668,18 @@ public:
 		findex to = m_policy[dj].first;
 
 		// Check if same clusters
-		if (from == to)
+		if (from == to) {
 			return; // nothing to propagate
+		}
 
-		std::cout << "   [PROPAGATE] messages between clusters: " << from << " and " << to << std::endl;
+		if (m_verbosity >= 1) {
+			std::cout << "   [PROPAGATE] messages between clusters: "
+				<< from << " and " << to << std::endl;
+		}
 
 		// Find unique path between the two clusters
 		schedule path = find_path(from, to);
-		if (m_debug) {
+		if (m_verbosity >= 2) {
 			std::cout << "      Path found:";
 			for (schedule::const_iterator i = path.begin(); i != path.end(); ++i) {
 				std::cout << " (" << i->first << " --> " << i->second << ")";
@@ -669,7 +696,7 @@ public:
 			size_t ei = m_edge_indeces[a][b]; // edge index
 			m_jointree[ei].message = message(a, b);
 
-			if (m_debug) {
+			if (m_verbosity >= 2) {
 				std::cout << "    - Sending message from " << a << " to " << b
 					<< " m(" << a << "," << b << "): elim = " << (m_scopes[a] - m_jointree[ei].separator) << std::endl;
 				std::cout << "        P: " << m_jointree[ei].message.first << std::endl;
@@ -677,7 +704,7 @@ public:
 			}
 		}
 
-		if (m_debug) {
+		if (m_verbosity >= 1) {
 			std::cout << "    Finished propagation in "
 				<< (timeSystem() - m_start_time) << " seconds" << std::endl;
 		}
@@ -822,7 +849,10 @@ public:
 	///
 	double collect() {
 
-		std::cout << "  [COLLECT] Begin message passing towards the root ..." << std::endl;
+		if (m_verbosity >= 1) {
+			std::cout << "  [COLLECT] Begin message passing towards the root ..." << std::endl;
+		}
+
 		for (schedule::const_iterator i = m_schedule.begin();
 				i != m_schedule.end(); ++i ) {
 
@@ -832,7 +862,7 @@ public:
 			size_t ei = m_edge_indeces[a][b]; // edge index
 			m_jointree[ei].message = message(a, b);
 
-			if (m_debug) {
+			if (m_verbosity >= 2) {
 				std::cout << "  - Sending message from " << a << " to " << b
 					<< " m(" << a << "," << b << "): elim = " << (m_scopes[a] - m_jointree[ei].separator) << std::endl;
 				std::cout << "      P: " << m_jointree[ei].message.first << std::endl;
@@ -844,16 +874,20 @@ public:
 		potential pot = incoming(m_root);
 		double eu = (pot.first * pot.second).sum(m_scopes[m_root]).sum();
 
-		std::cout << "  Finished collect to the root in "
-				<< (timeSystem() - m_start_time) << " seconds" << std::endl;
-		std::cout << "  Current strategy (expected utility): " << eu << std::endl;
-		std::cout << "  Current strategy (decision policies):" << std::endl;
-		for (size_t i = 0; i < m_decisions.size(); ++i) {
-			vindex d = m_decisions[i];
-			findex p = m_policy[d].second;
-			std::cout << "    " << d << " (d) : " << m_gmo.get_factor(p) << std::endl;
+		if (m_verbosity >= 1) {
+			std::cout << "  Finished collect to the root in "
+					<< (timeSystem() - m_start_time) << " seconds" << std::endl;
 		}
 
+		if (m_verbosity >= 2) {
+			std::cout << "  Current strategy (expected utility): " << eu << std::endl;
+			std::cout << "  Current strategy (decision policies):" << std::endl;
+			for (size_t i = 0; i < m_decisions.size(); ++i) {
+				vindex d = m_decisions[i];
+				findex p = m_policy[d].second;
+				std::cout << "    " << d << " (d) : " << m_gmo.get_factor(p) << std::endl;
+			}
+		}
 
 		return eu; // expected utility of the current policy
 	}
@@ -980,10 +1014,12 @@ public:
 		variable VX = var(d); // decision variable
 		findex a = m_policy[d].first; // cluster where decision resides
 
-		if (m_pure_strategy) {
-			std::cout << "   [UPDATE] pure policy for decision " << d << std::endl;
-		} else {
-			std::cout << "   [UPDATE] stochastic policy for decision " << d << std::endl;
+		if (m_verbosity >= 1) {
+			if (m_pure_strategy) {
+				std::cout << "   [UPDATE] pure policy for decision " << d << std::endl;
+			} else {
+				std::cout << "   [UPDATE] stochastic policy for decision " << d << std::endl;
+			}
 		}
 
 		// Retract the current policy, collect messages, compute contraction
@@ -993,7 +1029,7 @@ public:
 		pot.first /= delta; // do the actual retraction
 		factor cont = (pot.first * pot.second).marginal(delta.vars());
 
-		if (m_debug) {
+		if (m_verbosity >= 1) {
 			std::cout << "    Target cluster: " << a << std::endl;
 			std::cout << "    Current policy: " << delta << std::endl;
 			std::cout << "    Contraction: " << cont << std::endl;
@@ -1090,7 +1126,7 @@ public:
 			}
 		}
 
-		if (m_debug) {
+		if (m_verbosity >= 1) {
 			std::cout << "    Updated policy: " << ndelta << std::endl;
 			std::cout << "    Finished update step." << std::endl;
 		}
@@ -1103,13 +1139,98 @@ public:
 		double eu = (p.first*p.second).sum(m_scopes[a]).max();
 		m_meu = std::max(eu, m_meu);
 
-		std::cout << "    Current strategy (expected utility): " << eu << std::endl;
-		std::cout << "    Current strategy (decision policies):" << std::endl;
-		for (size_t i = 0; i < m_decisions.size(); ++i) {
-			vindex d = m_decisions[i];
-			findex p = m_policy[d].second;
-			std::cout << "     " << d << " (d) : " << m_gmo.get_factor(p) << std::endl;
+		if (m_verbosity >= 1) {
+			std::cout << "    Current strategy (expected utility): " << eu << std::endl;
+			std::cout << "    Current strategy (decision policies):" << std::endl;
+			for (size_t i = 0; i < m_decisions.size(); ++i) {
+				vindex d = m_decisions[i];
+				findex p = m_policy[d].second;
+				std::cout << "     " << d << " (d) : " << m_gmo.get_factor(p) << std::endl;
+			}
 		}
+	}
+
+	///
+	/// \bried Brute-force enumeration of all possible strategies.
+	///
+	/// For simplicity, assume for now that the decision variables are parentless.
+	///
+	void brute_force() {
+
+		// Initialize the algorithm
+		init();
+
+		m_meu = -infty();
+		std::cout << "Finding optimal policy by brute-force enumeration ..." << std::endl;
+
+		// Safety checks.
+		bool ok = true;
+		for (policy::const_iterator pi = m_policy.begin();
+				pi != m_policy.end(); ++pi) {
+			size_t fid = pi->second.second;
+			const factor& f = m_gmo.get_factor(fid);
+			if (f.vars().size() > 1) ok = false;
+			if (m_verbosity > 0) {
+				std::cout << " d " << pi->first << " : " << f << std::endl;
+			}
+		}
+
+		if (!ok) {
+			throw std::runtime_error("Brute force supported only for parentless decisions.");
+		}
+
+		// Initialize the decision variables and their values
+		vector<int> opt;
+		vector<vindex> scope = m_decisions;
+		vector<int> values(scope.size(), 0);
+		values[values.size()-1] = -1;
+
+		// Enumerate all possible assignments
+		int i, num_policies = 0;
+		while (true) {
+
+			// Enumerate the scope variables
+			for (i = scope.size() - 1; i >= 0; --i) {
+				vindex v = scope[i];
+				int last = var(v).states() - 1;
+				if (values[i] < last) break;
+				values[i] = 0;
+			}
+
+			if (i < 0) break; // done;
+			++values[i];
+
+			// Now all variables in scope have a specific value combination
+			for (size_t j = 0; j < values.size(); ++j) {
+				variable_set vs(var(scope[j]));
+				factor f(vs, 0.0);
+				f[values[j]] = 1.0;
+
+				size_t a = m_policy[scope[j]].first; // get the cluster
+				replace(a, scope[j], f); // replace the policy
+			}
+
+			// Evaluate the current policy
+			double eu = collect();
+			std::cout << "  [ ";
+			std::copy(values.begin(), values.end(),
+					std::ostream_iterator<int>(std::cout, " "));
+			std::cout << "] : " << eu << std::endl;
+
+			if (eu > m_meu) {
+				m_meu = eu;
+				opt = values;
+			}
+
+			++num_policies;
+		}
+
+		std::cout << "Finished evaluating " << num_policies << " policies in "
+			<< (timeSystem() - m_start_time) << " seconds" << std::endl;
+		std::cout << "MEU is " << m_meu << std::endl;
+		std::cout << "OPT policy is [ ";
+		std::copy(opt.begin(), opt.end(), std::ostream_iterator<int>(std::cout, " "));
+		std::cout << "] : " << m_meu << std::endl;
 	}
 
 protected:
@@ -1119,7 +1240,7 @@ protected:
 	double m_meu;						///< Log maximum expected utility
 	OrderMethod m_order_method;			///< Variable ordering method
 	variable_order_t m_order;			///< Variable order
-	bool m_debug;						///< Internal debugging flag
+	size_t m_verbosity;					///< Verbosity level (0=default, 1,2, 3)
 	size_t m_iterations;				///< Number of SPU iterations (default 1)
 	bool m_pure_strategy;				///< Compute pure or stochastic strategies (default 1=pure)
 	bool m_init_pure_strategy;			///< Initialize with pure, or stochastic policies
@@ -1134,7 +1255,7 @@ private:
 	vector<flist> m_originals;			///< Original factors (index) for each cluster
 	vector<variable_set> m_scopes;		///< The scope (vars) for each cluster
 	schedule m_schedule;				///< Initial message propagation schedule towards the root
-	policy m_policy;					///< Map decision variable to pair (cluster, policy factor)
+	policy m_policy;					///< Map decision variable to pair <cluster, policy factor>
 
 	matrix m_edge_indeces;				///< Stores the index of the edge between adjacent clusters
 
@@ -1144,7 +1265,6 @@ private:
 	vector<flist> m_children;			///< Children of each cluster in the bucket tree
 	size_t m_root;						///< Root of the bucket tree (ie, the first decision)
 	vector<flist> m_neighbors;			///< For each cluster, list its neighbors in the bucket tree
-
 };
 
 
