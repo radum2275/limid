@@ -1025,8 +1025,10 @@ public:
 		// Retract the current policy, collect messages, compute contraction
 		factor delta = retract(a, d);
 		assert(delta.vars().contains(VX)); // sanity checks
+		factor dummy = delta;
+		dummy.fill(1.0);
+		replace(a, d, dummy);
 		potential pot = incoming(a);
-		pot.first /= delta; // do the actual retraction
 		factor cont = (pot.first * pot.second).marginal(delta.vars());
 
 		if (m_verbosity >= 1) {
