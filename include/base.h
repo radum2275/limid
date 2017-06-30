@@ -25,8 +25,8 @@
 ///
 
 // Software version
-#define VERSIONINFO "limid 1.0.0"
-#define COPYRIGHT "(c) Copyright IBM Corp. and UCIrvine 2016\nAll Rights Reserved"
+#define VERSIONINFO "limid 1.1.0"
+#define COPYRIGHT "(c) Copyright IBM Corp. and UCIrvine 2016, 2017\nAll Rights Reserved"
 
 #ifndef IBM_MERLIN_BASE_H_
 #define IBM_MERLIN_BASE_H_
